@@ -15,6 +15,12 @@
 from importlib_resources import files
 from pynini.lib.pynutil import add_weight, delete
 
+from tn.chinese.address_path_expand import expand_address_path_spans
+from tn.chinese.equation_div_slash import mark_slash_in_equation_context
+from tn.chinese.hyphen_three_gang import expand_three_hyphen_to_gang
+from tn.chinese.iso_date_sentinel import insert_date_sentinels
+from tn.chinese.list_bullet_hyphen import remove_list_bullet_hyphens
+from tn.chinese.measure_range_wei_expand import expand_hyphen_to_dao_before_wei
 from tn.chinese.rules.cardinal import Cardinal
 from tn.chinese.rules.char import Char
 from tn.chinese.rules.date import Date
@@ -57,15 +63,19 @@ class Normalizer(Processor):
     def build_tagger(self):
         processor = PreProcessor(traditional_to_simple=self.traditional_to_simple).processor
 
-        date = add_weight(Date().tagger, 1.02)
+        # 权重越小越优先：date 须明显低于 time/math/cardinal，整块 yyyy-mm-dd 先于拆数字（四月负二十五）
+        date = add_weight(Date().tagger, 0.8)
         whitelist = add_weight(Whitelist().tagger, 1.03)
         sport = add_weight(Sport().tagger, 1.04)
-        fraction = add_weight(Fraction().tagger, 1.05)
+        # 略低于 math，使「3/5」「1/10000」等优先走分数「分之」，「10/4」仍因分子非单位数字不匹配分数
+        fraction = add_weight(Fraction().tagger, 1.04)
         measure = add_weight(Measure().tagger, 1.05)
         money = add_weight(Money().tagger, 1.05)
-        time = add_weight(Time().tagger, 1.05)
+        # 须低于 math，否则「7:30」「6:20-23:30」会被 math 的冒号「比」、减号「减」抢走；须高于 date(0.95)，避免抢 yyyy-mm-dd
+        time = add_weight(Time().tagger, 1.01)
         cardinal = add_weight(Cardinal().tagger, 1.06)
-        math = add_weight(Math().tagger, 90)
+        # 低于 cardinal（^、式子），高于 time（时刻），避免与纯数字 cardinal 抢且不误伤时刻
+        math = add_weight(Math().tagger, 1.05)
         char = add_weight(Char().tagger, 100)
 
         tagger = (date | whitelist | sport | fraction | measure | money | time | cardinal | math | char).optimize()
@@ -94,3 +104,15 @@ class Normalizer(Processor):
             tag_oov=self.tag_oov,
         ).processor
         self.verbalizer = (verbalizer @ processor).star
+
+    def tag(self, input):
+        # 先于 TN：http(s)://、盘符路径等读「冒号」「斜杠」及 IP/版本号等，避免被 cardinal/time 误拆
+        input = expand_address_path_spans(input)
+        input = expand_hyphen_to_dao_before_wei(input)
+        input = expand_three_hyphen_to_gang(input)
+        # ISO yyyy-mm-dd → sentinel token，避免被 math/cardinal/fraction 抢「-」和数字
+        input = insert_date_sentinels(input)
+        # 删除列表项目符号「 - 」或「- 」（前后无数字），避免被 math 读成「减」
+        input = remove_list_bullet_hyphens(input)
+        input = mark_slash_in_equation_context(input)
+        return super().tag(input)

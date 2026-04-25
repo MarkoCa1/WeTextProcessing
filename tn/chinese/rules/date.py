@@ -13,7 +13,7 @@
 # limitations under the License.
 
 from pynini import string_file
-from pynini.lib.pynutil import delete, insert
+from pynini.lib.pynutil import add_weight, delete, insert
 
 from tn.processor import Processor
 from tn.utils import get_abs_path
@@ -32,24 +32,59 @@ class Date(Processor):
 
         yyyy = digit + (digit | zero) ** 3
         m = string_file(get_abs_path("chinese/data/date/m.tsv"))
-        mm = string_file(get_abs_path("chinese/data/date/mm.tsv"))
+        mm_src = string_file(get_abs_path("chinese/data/date/mm.tsv"))
         d = string_file(get_abs_path("chinese/data/date/d.tsv"))
-        dd = string_file(get_abs_path("chinese/data/date/dd.tsv"))
+        dd_src = string_file(get_abs_path("chinese/data/date/dd.tsv"))
         rmsign = (delete("/") | delete("-") | delete(".")) + insert(" ")
+        # 仅「月-日」「月/日」视为无年份月日；不用「.」，避免与小数(如 10.5)冲突。
+        rmsign_month_day = (delete("/") | delete("-")) + insert(" ")
 
         year = insert('year: "') + yyyy + insert('年"')
-        month = insert('month: "') + (m | mm) + insert('"')
-        day = insert('day: "') + (d | dd) + insert('"')
+        # 严格「四位年-两位月-两位日」：月、日只用 mm/dd 表，不经 (d|dd)，避免 d 先吃「25」的首位二（→ 四月负二十五）
+        date_yyyy_mm_dd = (
+            year
+            + rmsign
+            + insert('month: "')
+            + mm_src
+            + insert('"')
+            + rmsign
+            + insert('day: "')
+            + dd_src
+            + insert('"')
+        )
+
+        # === Sentinel for ISO dates (最高优先级) ===
+        # 匹配预处理插入的 ___DATE_YYYYMMDD___ token
+        # year 必须带「年」才能正确 verbalize（原 date_yyyy_mm_dd 也是如此）
+        date_sentinel = (
+            delete("___DATE_")
+            + insert('year: "')
+            + yyyy
+            + insert('年" month: "')
+            + mm_src
+            + insert('" day: "')
+            + dd_src
+            + insert('"')
+            + delete("___")
+        )
+
+        # 单数字月/日等仍走 flex
+        month = insert('month: "') + (add_weight(mm_src, -0.5) | m) + insert('"')
+        day = insert('day: "') + (add_weight(dd_src, -0.5) | d) + insert('"')
 
         # yyyy/m/d | yyyy/mm/dd | dd/mm/yyyy
         # yyyy/0m | 0m/yyyy | 0m/dd
-        mm = insert('month: "') + mm + insert('"')
+        mm_month_day = insert('month: "') + mm_src + insert('"')
+        # yyyy-mm-dd 与 flex 可同时匹配「2026-04-25」：须极大压低 ISO 条、略抬高 flex，否则 optimize 后仍可能走 (d|dd) 吃「25」
+        date_flex_ymd = year + rmsign + month + rmsign + day
+
         date = (
-            (year + rmsign + month + rmsign + day)
+            add_weight(date_sentinel, -10.0)  # 最高优先级
+            | add_weight(date_yyyy_mm_dd, -5.0)
+            | add_weight(date_flex_ymd, 0.2)
             | (day + rmsign + month + rmsign + year)
-            | (year + rmsign + mm)
-            | (mm + rmsign + year)
-            | (mm + rmsign + day)
+            | (year + rmsign_month_day + mm_month_day)
+            | (mm_month_day + rmsign_month_day + year)
         )
         tagger = self.add_tokens(date)
 
@@ -59,6 +94,7 @@ class Date(Processor):
     def build_verbalizer(self):
         year = delete('year: "') + self.SIGMA + delete('" ')
         month = delete('month: "') + self.SIGMA + delete('"')
-        day = delete(' day: "') + self.SIGMA + delete('"')
+        # 与 tagger 衔接：有的构图在「月」与 day: 之间带空格，有的不带，两种都删
+        day = (delete(' day: "') | delete('day: "')) + self.SIGMA + delete('"')
         verbalizer = year.ques + month + day.ques
         self.verbalizer = self.delete_tokens(verbalizer)

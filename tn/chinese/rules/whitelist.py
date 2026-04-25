@@ -33,6 +33,7 @@ class Whitelist(Processor):
         )
 
         erhua = add_weight(insert('erhua: "') + accep("儿"), 0.1)
+        # 不在此拼接 Cardinal().positive_number：与全图 union 后 shortestpath 在如「A-10」上会极慢
         tagger = (erhua | (insert('value: "') + whitelist)) + insert('"')
         self.tagger = self.add_tokens(tagger)
 

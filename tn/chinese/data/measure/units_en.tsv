@@ -10,6 +10,7 @@ cwt	美担
 °C	摄氏度
 ℃	摄氏度
 db	分贝
+dB	分贝
 dm3	立方分米
 dm³	立方分米
 dm	分米
@@ -39,10 +40,12 @@ kpa	千帕
 kwh	千瓦时
 kw	千瓦
 kW	千瓦
+W	瓦
 lbs	磅
 lb	磅
 m2	平方米
 m²	平方米
+㎡	平方米
 m3	立方米
 m³	立方米
 mbps	兆比特每秒
@@ -52,10 +55,15 @@ mi2	平方英里
 mi²	平方英里
 min	分钟
 mi	英里
+MB/s	MB每秒
 ml	毫升
 mm2	平方毫米
 mm²	平方毫米
 mm	毫米
+mmHg	毫米汞柱
+mAh	毫安时
+bit	比特
+mol/L	摩尔每升
 mol	摩尔
 mpa	兆帕
 mph	英里每小时
@@ -89,3 +97,4 @@ yd	码
 μs	微秒
 ω	欧米茄
 °	度
+g	克

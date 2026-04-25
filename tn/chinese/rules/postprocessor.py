@@ -12,10 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pynini import difference, string_file
+from pynini import cross, difference, string_file
 from pynini.lib.pynutil import delete
 from pynini.lib.tagger import Tagger
 
+from tn.chinese.equation_div_slash import DIV_SLASH_SENTINEL
 from tn.processor import Processor
 from tn.utils import get_abs_path
 
@@ -39,6 +40,9 @@ class PostProcessor(Processor):
 
         if full_to_half:
             processor @= self.build_rule(full2half)
+
+        # 等式预处理插入的除法哨兵若未被 math 整条消费（如「E = 1」先吃掉数字），规范为「除以」
+        processor @= self.build_rule(cross(DIV_SLASH_SENTINEL, "除以"))
 
         if tag_oov:
             charset = zh_charset_std | zh_charset_ext | puncts | self.DIGIT | self.ALPHA | self.PUNCT | self.SPACE
