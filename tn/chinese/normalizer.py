@@ -16,6 +16,10 @@ from importlib_resources import files
 from pynini.lib.pynutil import add_weight, delete
 
 from tn.chinese.address_path_expand import expand_address_path_spans
+from tn.chinese.chinese_separator import (
+    normalize_chinese_separators,
+    normalize_chinese_slash,
+)
 from tn.chinese.equation_div_slash import mark_slash_in_equation_context
 from tn.chinese.hyphen_three_gang import expand_three_hyphen_to_gang
 from tn.chinese.iso_date_sentinel import insert_date_sentinels
@@ -105,6 +109,13 @@ class Normalizer(Processor):
         ).processor
         self.verbalizer = (verbalizer @ processor).star
 
+    def normalize(self, input: str) -> str:
+        # 先执行标准 tag + verbalize
+        result = self.verbalize(self.tag(input))
+        # 最后处理两个汉字之间的 / 和 \（保护 "分钟/公里" → "每公里...分钟" 等 measure 模式）
+        result = normalize_chinese_slash(result)
+        return result
+
     def tag(self, input):
         # 先于 TN：http(s)://、盘符路径等读「冒号」「斜杠」及 IP/版本号等，避免被 cardinal/time 误拆
         input = expand_address_path_spans(input)
@@ -114,5 +125,9 @@ class Normalizer(Processor):
         input = insert_date_sentinels(input)
         # 删除列表项目符号「 - 」或「- 」（前后无数字），避免被 math 读成「减」
         input = remove_list_bullet_hyphens(input)
+        # 将两个汉字之间的 `-` 替换为空格（地址分隔等场景）
+        input = normalize_chinese_separators(input)
         input = mark_slash_in_equation_context(input)
+        # 注意：/ 和 \ 的汉字间规范化不在 tag() 中处理，而是在 normalize() 最后处理
+        # 这样 FST 有机会先匹配 "分钟/公里" → "每公里...分钟" 等 measure 模式
         return super().tag(input)
