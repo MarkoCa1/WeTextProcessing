@@ -30,6 +30,7 @@ from tn.english.rules.telephone import Telephone
 from tn.english.rules.time import Time
 from tn.english.rules.whitelist import WhiteList
 from tn.english.rules.word import Word
+from tn.english.weather_temp_range import expand_weather_temp_ranges
 from tn.processor import Processor
 
 
@@ -108,3 +109,10 @@ class Normalizer(Processor):
             | rang
         ).optimize() + (punct.plus | self.INSERT_SPACE)
         self.verbalizer = verbalizer.star @ self.build_rule(delete(" "), r="[EOS]")
+
+    def tag(self, input: str) -> str:
+        # Preprocess weather temperature ranges before FST
+        # e.g. "24/13℃" → "24 to 13 ℃", "25℃~29℃" → "25 to 29 ℃"
+        # This prevents Fraction from misreading "24/13" and avoids malformed tokens in Measure.
+        input = expand_weather_temp_ranges(input)
+        return super().tag(input)

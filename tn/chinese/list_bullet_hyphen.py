@@ -12,34 +12,53 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""列表项目符号「 - 」或「- 」规范化。
+"""列表项目符号规范化（支持 -、*、**）。
 
-当「-」前后没有数字（或前后是空格且附近无数字）时，删除它，避免被 math 读成「减」。
-适用于天气预报、列表等场景，如「 - 昨天（4月23日）」→ 「昨天（4月23日）」。
+规则：
+1. 删除行首的 dash bullet（`- `、` - `），仅当后面不是数字。
+2. 仅删除「行首或行首仅含空格」的单个 asterisk bullet（`* `、`   * `）。
+   - 公式中的乘号 `1/2 * m`、`m * v^2` 不会被删除（前面有非空格字符）。
+3. 删除成对的 Markdown 加粗标记 `**text**`（保留内容）。
+4. 优先级高于 char（保底），但低于 math/date/cardinal，不会覆盖数值/算式中的符号。
 """
 
 import re
 
-# 匹配列表项目符号：前面是标点、行首或空格，后面是中文、日期、括号或天气描述
-# 只匹配**列表/天气上下文**的 bullet `- `，不匹配纯负数 `-5` 或 math 中的 `(3 - 1)`、`100 - 25`
-# 这样负数由 Cardinal.sign 处理，math 由 Math.paren_minus/main 处理
-# bullet 删除优先级：高于 char（保底），但低于 math/date/cardinal（不会覆盖它们）
+# 匹配 dash 列表项目符号：前面是标点/行首/空格，后面紧跟非数字的中文/字母
+# 这样 '-气温'、'：-风向'、' - 昨天' 等 bullet 被删除，'-5'、'25-30' 等保留
 _BULLET_PATTERN = re.compile(
-    r"(^|[:：。，；、\s]+)[-—–]\s*(?![ \d])(?=[（(【\[（一二三四五六七八九十零〇]|昨天|今天|明天|后天|大后天|前天|晴|多云|阴|雨|雪|风|℃|建议|注意|计算|公式)",
+    r'(^|[:：。，；、\s]+)([-—–])\s*(?!\d)(?=[\u4e00-\u9fffA-Za-z])',
     flags=re.MULTILINE,
 )
 
+# 仅删除「行首或行首仅含空格」的单个 * bullet
+# 例如：`* item`、`   * item` 会被删除
+# 但 `1/2 * m`、`m * v^2`、`：* 子列表` 不会被删除（前面有非空格字符）
+_ASTERISK_BULLET = re.compile(
+    r'^\s*\*\s+(?!\d)(?=[\u4e00-\u9fffA-Za-z])',
+    flags=re.MULTILINE,
+)
+
+# 移除成对的 **加粗** 标记（保留内部文本），但不移除单个 *
+_BOLD_MARKER = re.compile(r'\*\*([^*]+)\*\*')
+
 
 def remove_list_bullet_hyphens(text: str) -> str:
-    """删除非数值范围的列表项目符号「 - 」，保留后面的内容并清理空格。"""
+    """删除列表 bullet（-、*）和 Markdown **加粗** 标记，保留内容并清理空格。"""
     if not text:
         return text
 
     # 统一 dash 为半角
     text = text.replace("\u2013", "-").replace("\u2014", "-").replace("\uFF0D", "-")
 
-    # 删除 bullet，替换为单个空格
+    # 1. 先删除 **bold** 标记（保留内容），避免影响后续 bullet 匹配
+    text = _BOLD_MARKER.sub(r"\1", text)
+
+    # 2. 删除 dash bullet
     text = _BULLET_PATTERN.sub(r"\1 ", text)
+
+    # 3. 删除行首的 * bullet（替换为单个空格）
+    text = _ASTERISK_BULLET.sub(" ", text)
 
     # 清理多余空格
     text = re.sub(r"\s+", " ", text)
