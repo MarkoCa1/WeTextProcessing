@@ -27,7 +27,7 @@ import re
 # 匹配 dash 列表项目符号：前面是标点/行首/空格，后面紧跟非数字的中文/字母
 # 这样 '-气温'、'：-风向'、' - 昨天' 等 bullet 被删除，'-5'、'25-30' 等保留
 _BULLET_PATTERN = re.compile(
-    r'(^|[:：。，；、\s]+)([-—–])\s*(?!\d)(?=[\u4e00-\u9fffA-Za-z])',
+    r'(^|[:：。，；、\s]+)([-—–]+)\s*(?!\d)(?=[\u4e00-\u9fffA-Za-z])',
     flags=re.MULTILINE,
 )
 
