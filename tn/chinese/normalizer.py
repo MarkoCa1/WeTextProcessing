@@ -117,6 +117,8 @@ class Normalizer(Processor):
         return result
 
     def tag(self, input):
+        # 破折号 → 空格须最先执行，避免后续步骤（如 expand_three_hyphen_to_gang）将 — 转为 -
+        input = normalize_chinese_separators(input)
         # 先于 TN：http(s)://、盘符路径等读「冒号」「斜杠」及 IP/版本号等，避免被 cardinal/time 误拆
         input = expand_address_path_spans(input)
         input = expand_hyphen_to_dao_before_wei(input)
@@ -125,8 +127,6 @@ class Normalizer(Processor):
         input = insert_date_sentinels(input)
         # 删除列表项目符号「 - 」或「- 」（前后无数字），避免被 math 读成「减」
         input = remove_list_bullet_hyphens(input)
-        # 将两个汉字之间的 `-` 替换为空格（地址分隔等场景）
-        input = normalize_chinese_separators(input)
         input = mark_slash_in_equation_context(input)
         # 注意：/ 和 \ 的汉字间规范化不在 tag() 中处理，而是在 normalize() 最后处理
         # 这样 FST 有机会先匹配 "分钟/公里" → "每公里...分钟" 等 measure 模式
