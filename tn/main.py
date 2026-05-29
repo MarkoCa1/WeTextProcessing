@@ -20,6 +20,7 @@ from itn.main import str2bool
 from tn.chinese.normalizer import Normalizer as ZhNormalizer
 from tn.english.normalizer import Normalizer as EnNormalizer
 from tn.japanese.normalizer import Normalizer as JaNormalizer
+from tn.yue.normalizer import Normalizer as YueNormalizer
 
 
 def main():
@@ -34,7 +35,7 @@ def main():
     parser.add_argument("--remove_puncts", type=str, default="False", help='remove punctuations like "。" and "，"')
     parser.add_argument("--full_to_half", type=str, default="True", help='i.e., "Ａ" -> "A"')
     parser.add_argument("--tag_oov", type=str, default="False", help='tag OOV with "OOV"')
-    parser.add_argument("--language", type=str, default="zh", choices=["zh", "en", "ja"], help="valid languages")
+    parser.add_argument("--language", type=str, default="zh", choices=["zh", "yue", "en", "ja"], help="valid languages")
     args = parser.parse_args()
 
     if args.language == "zh":
@@ -44,6 +45,16 @@ def main():
             remove_interjections=str2bool(args.remove_interjections),
             remove_erhua=str2bool(args.remove_erhua),
             traditional_to_simple=str2bool(args.traditional_to_simple),
+            remove_puncts=str2bool(args.remove_puncts),
+            full_to_half=str2bool(args.full_to_half),
+            tag_oov=str2bool(args.tag_oov),
+        )
+    elif args.language == "yue":
+        normalizer = YueNormalizer(
+            cache_dir=args.cache_dir,
+            overwrite_cache=args.overwrite_cache,
+            remove_interjections=str2bool(args.remove_interjections),
+            remove_erhua=str2bool(args.remove_erhua),
             remove_puncts=str2bool(args.remove_puncts),
             full_to_half=str2bool(args.full_to_half),
             tag_oov=str2bool(args.tag_oov),

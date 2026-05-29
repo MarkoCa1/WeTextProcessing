@@ -53,5 +53,5 @@ include = ["tn*", "itn*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-tn = ["*.fst", "chinese/data/*/*.tsv", "english/data/*/*.tsv", "english/data/*.tsv", "english/data/*/*.far"]
+tn = ["*.fst", "chinese/data/*/*.tsv", "yue/data/*/*.tsv", "english/data/*/*.tsv", "english/data/*.tsv", "english/data/*/*.far"]
 itn = ["*.fst", "chinese/data/*/*.tsv"]
