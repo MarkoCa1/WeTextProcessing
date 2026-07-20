@@ -42,7 +42,8 @@ class Measure(Processor):
         prefix = number + (rmspace + units).ques + to
         measure = prefix.ques + number + rmspace + units
 
-        for unit in ["两", "月", "号"]:
+        # 「日」同「月」「号」：日历序数读「二日」不读「两日」
+        for unit in ["两", "月", "号", "日"]:
             measure @= self.build_rule(cross("两" + unit, "二" + unit), l="[BOS]")
             measure @= self.build_rule(cross("到两" + unit, "到二" + unit), r="[EOS]")
         # 楼层读「二层」不读「两层」（避免 number 侧「二→两」与层连用）
